@@ -37,17 +37,34 @@
 </div>
 <iframe id="app" title="BMR / BPR Scanner" allow="camera; clipboard-write; fullscreen"></iframe>
 
+<script src="config.js"></script>
 <script>
-  // Paste the web app link from Apps Script: Deploy > Manage deployments > Web app URL (ends with /exec)
-  const SCANNER_URL = 'https://script.google.com/macros/s/AKfycbxQm39uMlXA1pUYZpmA0zvwxjFfG3EBIEXSd0j7k1xdUlCPYhdDefdCIUtjL9zxg4y1zA/exec';
-
+  const SCANNER_URL = (window.SCANNER_URL || '').trim();
   const app = document.getElementById('app'), splash = document.getElementById('splash');
-  document.getElementById('direct').href = SCANNER_URL;
+  document.getElementById('direct').href = SCANNER_URL || '#';
+
+  // ---- settings the scanner asks us to keep (PIN, operator, stage, auto-save) ----
+  const KEY = 'bmr-settings', ALLOWED = ['pin', 'operator', 'mode', 'auto'];
+  const load = () => { try { return JSON.parse(localStorage.getItem(KEY) || '{}'); } catch (e) { return {}; } };
+  const fromScanner = o => { try { return new URL(o).hostname.endsWith('-script.googleusercontent.com'); } catch (e) { return false; } };
+  window.addEventListener('message', e => {
+    const d = e.data;
+    if (!d || d.bmr !== 1 || !fromScanner(e.origin)) return;
+    if (d.type === 'hello') e.source.postMessage({ bmr: 1, type: 'settings', data: load() }, e.origin);
+    if (d.type === 'set' && ALLOWED.indexOf(d.k) >= 0) {
+      const s = load(); s[d.k] = String(d.v);
+      try { localStorage.setItem(KEY, JSON.stringify(s)); } catch (x) {}
+    }
+  });
+
   if (SCANNER_URL.indexOf('/exec') < 0) {
-    splash.querySelector('p').textContent = 'Launcher not set up yet: paste the web app URL into index.html.';
+    splash.querySelector('p').textContent = 'Launcher not set up yet: paste the web app link into config.js.';
   } else {
+    // Open the scanner without the phone's Google accounts attached (like Incognito).
+    // This avoids Google's "unable to open the file" error when several accounts are signed in.
+    app.setAttribute('credentialless', '');
     app.addEventListener('load', () => splash.classList.add('gone'));
-    app.src = SCANNER_URL;
+    app.src = SCANNER_URL.replace(/\/macros\/u\/\d+\//, '/macros/');
     setTimeout(() => { if (!splash.classList.contains('gone')) document.getElementById('help').style.display = 'block'; }, 12000);
   }
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
