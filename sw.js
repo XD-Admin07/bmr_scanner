@@ -1,6 +1,6 @@
 // Keeps the launcher shell (page, icons) available so the home-screen app opens instantly.
 // The scanner itself always loads live from Google, so scans are never served from cache.
-const CACHE = 'bmr-launcher-v4';
+const CACHE = 'bmr-launcher-v5';
 const SHELL = ['./', 'index.html', 'config.js', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'];
 
 self.addEventListener('install', e => {

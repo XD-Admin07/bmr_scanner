@@ -1,7 +1,7 @@
 {
-  "name": "BMR / BPR Scanner",
-  "short_name": "BMR Scanner",
-  "description": "Scan and track BMR / BPR batch records for the soap and detergent plants.",
+  "name": "Batch Record System",
+  "short_name": "Batch Records",
+  "description": "Scan and track BMR / BPR batch records for Personal Care 2.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
