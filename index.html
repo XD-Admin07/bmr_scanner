@@ -9,7 +9,7 @@
 <link rel="icon" type="image/png" href="icon-192.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="BMR Scanner">
+<meta name="apple-mobile-web-app-title" content="BMR Records">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <style>
   html, body { margin: 0; height: 100%; background: #eaf0ed; }
@@ -22,8 +22,19 @@
   #splash a { color: #0b6b2e; font-weight: 700; }
   #splash.gone { opacity: 0; pointer-events: none; }
   #help { display: none; max-width: 300px; }
+  .spinner { width: 30px; height: 30px; border-radius: 50%; border: 3px solid #d6eadc; border-top-color: #0b6b2e; animation: spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  /* no-network screen: shown instead of Chrome's own offline page */
+  #offline { position: fixed; inset: 0; z-index: 10; display: grid; place-content: center; justify-items: center; gap: 12px;
+             text-align: center; padding: 24px; background: #eaf0ed; }
+  #offline[hidden] { display: none; }
+  #offline img { width: 88px; height: 88px; }
+  #offline strong { font-size: 20px; color: #b3261e; }
+  #offline p { margin: 0; color: #5a6b62; max-width: 290px; font-size: 14px; }
+  #offline button { margin-top: 6px; min-width: 180px; padding: 13px 18px; border: 0; border-radius: 12px; background: #0b6b2e;
+                    color: #fff; font: 700 16px system-ui, sans-serif; cursor: pointer; }
   @media (prefers-color-scheme: dark) {
-    html, body, #splash, #app { background: #0e1612; }
+    html, body, #splash, #app, #offline { background: #0e1612; } #offline strong { color: #f2b8b5; } #offline p { color: #9cb0a5; }
     body { color: #e4eee8; } #splash p { color: #9cb0a5; } #splash a { color: #5bb974; }
   }
 </style>
@@ -32,8 +43,15 @@
 <div id="splash">
   <img src="icon-192.png" alt="">
   <strong>BMR / BPR Record System</strong>
-  <p>Opening the scanner…</p>
+  <div class="spinner" aria-hidden="true"></div>
+  <p>Loading…</p>
   <p id="help">Taking longer than usual. Check the phone's internet, or <a id="direct" href="#" target="_top">open the scanner directly</a>.</p>
+</div>
+<div id="offline" role="alert" hidden>
+  <img src="icon-192.png" alt="">
+  <strong>No network connection</strong>
+  <p id="offMsg">Check the phone's Wi-Fi or mobile data. The scanner opens by itself when the network is back.</p>
+  <button type="button" id="retry">Try again</button>
 </div>
 <iframe id="app" title="BMR / BPR Record System" allow="camera; clipboard-write; fullscreen"></iframe>
 
@@ -63,9 +81,26 @@
     // Open the scanner without the phone's Google accounts attached (like Incognito).
     // This avoids Google's "unable to open the file" error when several accounts are signed in.
     app.setAttribute('credentialless', '');
-    app.addEventListener('load', () => splash.classList.add('gone'));
-    app.src = SCANNER_URL.replace(/\/macros\/u\/\d+\//, '/macros/');
-    setTimeout(() => { if (!splash.classList.contains('gone')) document.getElementById('help').style.display = 'block'; }, 12000);
+    const URL_ = SCANNER_URL.replace(/\/macros\/u\/\d+\//, '/macros/');
+    const off = document.getElementById('offline'), offMsg = document.getElementById('offMsg');
+    let loaded = false;   // true once the scanner has loaded while the phone was online
+    const open = () => {
+      if (!navigator.onLine) { off.hidden = false; return; }          // don't let Chrome show its offline page
+      off.hidden = true; splash.classList.remove('gone'); loaded = false; app.src = URL_;
+      setTimeout(() => { if (!loaded && navigator.onLine) document.getElementById('help').style.display = 'block'; }, 12000);
+    };
+    app.addEventListener('load', () => {
+      if (!app.src) return;
+      if (!navigator.onLine) { off.hidden = false; return; }          // that load was Chrome's error page
+      loaded = true; splash.classList.add('gone');
+    });
+    window.addEventListener('offline', () => { off.hidden = false; });
+    window.addEventListener('online', () => { if (loaded) off.hidden = true; else open(); });
+    document.getElementById('retry').addEventListener('click', () => {
+      if (!navigator.onLine) { offMsg.textContent = 'Still no network. Turn on Wi-Fi or mobile data, then try again.'; return; }
+      loaded ? (off.hidden = true) : open();
+    });
+    open();
   }
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 </script>
